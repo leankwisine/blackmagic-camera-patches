@@ -55,12 +55,12 @@ Effects of leaving the screen
 
 ## Implementation choices
 
-The patch binds UUID-keyed remote preview holders and intercepts the final draw for those surfaces. This keeps the original EGL window, buffer queue, transport, decoder, draw count and camera-control paths. Rotation and scaling use the EGL video buffer dimensions as the source and the SurfaceView dimensions as the destination, after the stock orientation policy. This compensates when Compose stretches a landscape 1920×1080 buffer into a portrait frame. GL receives adjusted quad vertices and a compensated sampling matrix. Fit and crop can require a clear or scissor on the existing window. The extension reuses a small vertex buffer and scratch arrays and allocates no video frames.
+The patch binds UUID-keyed remote preview holders and intercepts the final draw for those surfaces. This keeps the original EGL window, buffer queue, transport, decoder, draw count and camera-control paths. Rotation and scaling use the decoder's visible frame dimensions and pixel aspect ratio, accounting for the stock sampling axes. The SurfaceView supplies the destination dimensions, and the EGL buffer supplies a fallback before the decoder reports its format. A lens switch can change the decoded aspect while the EGL buffer stays fixed. GL receives adjusted quad vertices and a compensated sampling matrix. Fit and crop can require a clear or scissor on the existing window. The extension reuses a small vertex buffer and scratch arrays and allocates no video frames.
 
 The exact version and code gate complements structural checks on SurfaceHolder callbacks, GL calls, register counts and typed fields. A version or method-shape mismatch aborts the patch. Importing the patch keeps it opt-in. Reset calls the stock draw again and saves default settings.
 
 - **Rotation** adds a clockwise 0°, 90°, 180° or 270° turn. The calculator exchanges source dimensions for 90° and 270°.
-- **Aspect ratio** sets Original, 16:9, 9:16, 4:3 or 1:1 as the framing choice. Original keeps the stock source proportions.
+- **Aspect ratio** sets Original, 16:9, 9:16, 4:3 or 1:1 as the framing choice. Original keeps the decoded video proportions.
 - **Fit** contains the image in the selected frame. **Center crop** covers the largest selected frame that fits within the viewport. **Fill** covers a frame sized to fill the viewport and clips any overflow at the viewport. Original makes Fill and Center crop equivalent. **Default** uses the stock draw when rotation and aspect are also at their defaults, and otherwise uses Fit.
 - Open the control with the rotation icon at the top end of the selected feed. The icon sheds its background after 3.5 seconds, and the same small area opens the menu again. The icon remains visible with touch exploration enabled. Transform choices are application-wide for the selected remote monitor and stored in a dedicated SharedPreferences entry.
 
@@ -112,6 +112,8 @@ $bundle = ./scripts/build-monitor-local.ps1 -MorpheDesktop $desktopJar -GradleLi
 
 - An in-place update retained the remote pairing and 90° setting. Opposite-edge taps centered the controller's AE/AF marker on the corresponding edges of the reference chart. Focus on the remote camera was confirmed. JVM coverage includes all four rotations, Fit bars, Center crop and Fill.
 
+- In a follow-up test, the uncropped 0.5× 19 mm feed reported 1080×1920. At 90° Original Fit, the monitor displayed the square reference target at 141×142 pixels. Regression coverage exercises lens switches that change the decoded aspect and the resulting focus mapping.
+
 ### Preview frame timing
 
 SurfaceFlinger actual-present timestamps were sampled from the active remote preview's BLAST surface with the iOS camera reporting 4K, 16:9, 24 fps. Default uses the stock draw in the installed test build. Each row is a roughly three-second sample.
@@ -129,8 +131,8 @@ These samples measure Android presentation cadence. Glass-to-glass latency, sust
 | --- | --- | --- |
 | Upstream audit and exact target APK identity | Complete | Cloned and reviewed the pinned upstream commit. Verified the original app manifest and split signatures. |
 | Development patch bundle | Built | Java extension, D8, Kotlin compiler and MPP package succeeded. Authenticated Gradle build remains unverified. |
-| Exact APK fingerprints and bytecode | Applied | Morphe Desktop ran with uniqueness validation and enabled only the monitor patch. Apktool verification covers the extension and untouched decoder, transport and license classes. APK Signature Scheme verification passed for the aligned and locally signed three-APK test set. |
-| Rotation, aspect, Fit/Fill/Center crop, invalid input and reset | Partially device-tested | Thirteen JVM tests passed. The Android controller displayed the square chart upright at 90° Original Fit. Live 1:1 Fit and Center crop produced distinct framing. |
+| Exact APK fingerprints and bytecode | Applied | Morphe Desktop ran with uniqueness validation and enabled only the monitor patch. Apktool verification covers the extension, format callback hook and unchanged decoder setup, transport and license classes. APK Signature Scheme verification passed for the aligned and locally signed three-APK test set. |
+| Rotation, aspect, Fit/Fill/Center crop, invalid input and reset | Partially device-tested | Fifteen JVM tests passed. The Android controller displayed the square chart upright at 90° Original Fit. Live 1:1 Fit and Center crop produced distinct framing. |
 | Remote touch focus | Device-tested | Opposite-edge taps tracked at 90° on the controller, and focus on the remote camera was confirmed. Coordinate tests cover bars and crop. |
 | Preferences and control | Device-tested | The 90° choice persisted across process restart and camera reselection. Stock Record and the transform menu both responded. |
 | Surface recreation, device rotation and reconnect | Partially device-tested | The restarted app recreated the remote preview after reselecting the iOS camera. Physical Android display rotation was not exercised. |

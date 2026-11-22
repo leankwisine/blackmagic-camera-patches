@@ -149,20 +149,41 @@ val remoteMonitorTransformPatch = bytecodePatch(
         )
         tap.addInstructions(tapBounds.index + 1, "iget-object v2, p0, Ldi1;->h:$CAMERA_MODEL")
 
+        val decoderFormat = RemoteDecoderFormat.method
+        val formatCheck = RemoteDecoderFormat.instructionMatches.last()
+        val decoderFields = classDefBy(REMOTE_DECODER).fields.map { it.name to it.type }
+        val callbackFields = classDefBy(CODEC_CALLBACK).fields.map { it.name to it.type }
+        if (decoderFormat.implementation?.registerCount != 3 ||
+            decoderFormat.implementation?.instructions?.getOrNull(formatCheck.index + 1)?.opcode != Opcode.RETURN_VOID ||
+            ("i" to RENDERER) !in decoderFields || ("a" to REMOTE_DECODER) !in callbackFields
+        ) {
+            throw PatchException("Remote feed format callbacks changed in $VERSION.")
+        }
+
+        decoderFormat.addInstructions(
+            formatCheck.index + 1,
+            """
+                iget-object p0, p0, $CODEC_CALLBACK->a:$REMOTE_DECODER
+                iget-object p0, p0, $REMOTE_DECODER->i:$RENDERER
+                invoke-static {p0, p2}, $EXTENSION->setDecodedFormat(Ljava/lang/Object;$MEDIA_FORMAT)V
+            """.trimIndent(),
+        )
         // GL shader uniforms are set by the stock draw. The extension updates only the video quad.
         val (mode, first, count) = listOf(drawRegisters.registerC, drawRegisters.registerD, drawRegisters.registerE)
         draw.replaceInstruction(drawCall.index, "invoke-static {v$mode, v$first, v$count}, $EXTENSION->draw(III)V")
         draw.addInstructionsWithLabels(
             0,
             """
-                iget-object v0, p4, $OUTPUT->b:$SURFACE
-                iget-object v1, p4, $OUTPUT->s:$SIZE
-                if-nez v1, :buffer_size
-                iget-object v1, p4, $OUTPUT->c:$SIZE
+                move-object v0, p0
+                iget-object v1, p4, $OUTPUT->b:$SURFACE
+                iget-object v2, p4, $OUTPUT->s:$SIZE
+                if-nez v2, :buffer_size
+                iget-object v2, p4, $OUTPUT->c:$SIZE
                 :buffer_size
-                iget v2, p5, $PROGRAM->b:I
-                iget v3, p5, $PROGRAM->c:I
-                invoke-static {v0, v1, v2, v3, p3}, $EXTENSION->begin($SURFACE${SIZE}II[F)V
+                iget v3, p5, $PROGRAM->b:I
+                iget v4, p5, $PROGRAM->c:I
+                move-object v5, p3
+                invoke-static/range {v0 .. v5}, $EXTENSION->begin(Ljava/lang/Object;$SURFACE${SIZE}II[F)V
             """.trimIndent(),
         )
     }

@@ -11,6 +11,9 @@ internal const val PROGRAM = "Lk90;"
 internal const val VIEW = "Le80;"
 internal const val HOLDER = "Landroid/view/SurfaceHolder;"
 internal const val GL = "Landroid/opengl/GLES20;"
+internal const val REMOTE_DECODER = "Lcj9;"
+internal const val CODEC_CALLBACK = "Lzi9;"
+internal const val MEDIA_FORMAT = "Landroid/media/MediaFormat;"
 
 internal object RemoteSurfaceCreated : Fingerprint(
     definingClass = "Ld35;",
@@ -49,6 +52,17 @@ internal object PreviewPresentationDraw : Fingerprint(
         methodCall(definingClass = PROGRAM, name = "a", parameters = listOf("[F"), returnType = "V"),
         methodCall(definingClass = PROGRAM, name = "b", parameters = listOf("Ljava/nio/FloatBuffer;"), returnType = "V"),
         methodCall(definingClass = GL, name = "glDrawArrays", parameters = listOf("I", "I", "I"), returnType = "V"),
+    ),
+)
+
+internal object RemoteDecoderFormat : Fingerprint(
+    definingClass = CODEC_CALLBACK,
+    name = "onOutputFormatChanged",
+    parameters = listOf("Landroid/media/MediaCodec;", MEDIA_FORMAT),
+    returnType = "V",
+    filters = listOf(
+        methodCall(definingClass = "Ljava/lang/Object;", name = "getClass", returnType = "Ljava/lang/Class;"),
+        methodCall(definingClass = "Ljava/lang/Object;", name = "getClass", returnType = "Ljava/lang/Class;"),
     ),
 )
 

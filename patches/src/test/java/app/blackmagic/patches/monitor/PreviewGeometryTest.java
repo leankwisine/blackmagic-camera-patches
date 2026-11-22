@@ -44,6 +44,31 @@ public class PreviewGeometryTest {
         assertEquals(1920, geometry.drawHeight, TOLERANCE);
     }
 
+    @Test public void lensSwitchResizesVideoAndFocusWithinTheSameViewport() {
+        float[] stock = {1, 0, 0, 0, 0, -1};
+        PreviewSettings settings = new PreviewSettings(PreviewSettings.Rotation.CLOCKWISE_90,
+            PreviewSettings.Aspect.ORIGINAL, PreviewSettings.Scale.FIT);
+        float wide = PreviewGeometry.sourceAspect(9f / 16, stock, 16f / 9);
+        PreviewGeometry uncropped = PreviewGeometry.calculate(wide, 1, 1080, 1920, settings);
+        assertEquals(607.5f, uncropped.drawHeight, TOLERANCE);
+        assertNull(uncropped.displayToStock(0.5f, 0.1f));
+        PreviewGeometry.Point tap = uncropped.displayToStock(0.2f, 0.4f);
+        PreviewGeometry.Point reticle = uncropped.stockToDisplay(tap.x, tap.y);
+        assertEquals(0.2f, reticle.x, TOLERANCE);
+        assertEquals(0.4f, reticle.y, TOLERANCE);
+
+        float front = PreviewGeometry.sourceAspect(16f / 9, stock, 16f / 9);
+        PreviewGeometry cropped = PreviewGeometry.calculate(front, 1, 1080, 1920, settings);
+        assertEquals(1920, cropped.drawHeight, TOLERANCE);
+    }
+
+    @Test public void sourceGeometryUsesStockSamplingAxesAndFallsBackBeforeDecode() {
+        float[] stockQuarterTurn = {0, -1, 0, 0, -1, 0};
+        assertEquals(16f / 9, PreviewGeometry.sourceAspect(9f / 16, stockQuarterTurn, 16f / 9), TOLERANCE);
+        assertEquals(4f / 3, PreviewGeometry.sourceAspect(3f / 4, stockQuarterTurn, 16f / 9), TOLERANCE);
+        assertEquals(16f / 9, PreviewGeometry.sourceAspect(0, stockQuarterTurn, 16f / 9), TOLERANCE);
+    }
+
     @Test public void quarterTurnsSwapDimensionsAndRotateClockwise() {
         assertRotation(PreviewSettings.Rotation.CLOCKWISE_90, new float[]{-1, 1, -1, -1, 1, 1, 1, -1});
         assertRotation(PreviewSettings.Rotation.CLOCKWISE_180, new float[]{1, 1, -1, 1, 1, -1, -1, -1});

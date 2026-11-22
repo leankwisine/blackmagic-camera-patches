@@ -26,7 +26,7 @@ final class PreviewGeometry {
     }
 
     /** The source is the stock video presentation before the extra clockwise rotation. */
-    static PreviewGeometry calculate(int sourceWidth, int sourceHeight, int viewportWidth, int viewportHeight,
+    static PreviewGeometry calculate(float sourceWidth, float sourceHeight, int viewportWidth, int viewportHeight,
                                      PreviewSettings settings) {
         if (sourceWidth <= 0 || sourceHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0
             || settings.usesStockPreview()) {
@@ -57,6 +57,14 @@ final class PreviewGeometry {
         return new PreviewGeometry(width * scale, height * scale,
             Math.min(frameWidth, viewportWidth), Math.min(frameHeight, viewportHeight),
             viewportWidth, viewportHeight, settings.rotation);
+    }
+
+    static float sourceAspect(float decodedAspect, float[] stockMatrix, float bufferAspect) {
+        if (decodedAspect <= 0) {
+            return bufferAspect;
+        }
+        // The stock sampling matrix can already turn the decoded frame by a quarter turn.
+        return Math.abs(stockMatrix[1]) > Math.abs(stockMatrix[0]) ? 1 / decodedAspect : decodedAspect;
     }
 
     boolean matchesViewport(long dimensions) {

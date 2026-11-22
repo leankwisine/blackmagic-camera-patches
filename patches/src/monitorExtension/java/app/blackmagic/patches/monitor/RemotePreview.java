@@ -3,6 +3,7 @@ package app.blackmagic.patches.monitor;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.PointF;
+import android.media.MediaFormat;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
 import android.util.Size;
@@ -37,6 +38,8 @@ public final class RemotePreview {
     private static final Map<SurfaceHolder, WeakReference<SurfaceView>> VIEWS = new WeakHashMap<>();
     private static final Map<SurfaceHolder, Binding> BINDINGS = new WeakHashMap<>();
     private static final Map<Surface, Viewport> REMOTE_OUTPUTS = new ConcurrentHashMap<>();
+    private static final Map<Object, Float> DECODED_ASPECTS =
+        Collections.synchronizedMap(new WeakHashMap<>());
     private static final ThreadLocal<DrawState> DRAW_STATE = new ThreadLocal<>();
     private static final float[] BLACK = {0, 0, 0, 1};
     private static volatile PreviewSettings settings = PreviewSettings.DEFAULT;
@@ -304,6 +307,7 @@ public final class RemotePreview {
         final int[] scissor = new int[4];
         PreviewSettings settings;
         long dimensions;
+        float sourceAspect;
         PreviewGeometry geometry;
         PreviewGeometry pending;
         Viewport viewport;
@@ -313,7 +317,28 @@ public final class RemotePreview {
         float[] stockMatrix;
     }
 
-    public static void begin(Surface surface, Size bufferSize, int vertexLocation,
+    public static void setDecodedFormat(Object renderer, MediaFormat format) {
+        int width = format.getInteger(MediaFormat.KEY_WIDTH, 0);
+        int height = format.getInteger(MediaFormat.KEY_HEIGHT, 0);
+        int left = format.getInteger(MediaFormat.KEY_CROP_LEFT, 0);
+        int top = format.getInteger(MediaFormat.KEY_CROP_TOP, 0);
+        int right = format.getInteger(MediaFormat.KEY_CROP_RIGHT, width - 1);
+        int bottom = format.getInteger(MediaFormat.KEY_CROP_BOTTOM, height - 1);
+        if (left >= 0 && top >= 0 && right >= left && bottom >= top && right < width && bottom < height) {
+            width = right - left + 1;
+            height = bottom - top + 1;
+        }
+        if (width <= 0 || height <= 0) {
+            DECODED_ASPECTS.remove(renderer);
+            return;
+        }
+        int pixelWidth = format.getInteger(MediaFormat.KEY_PIXEL_ASPECT_RATIO_WIDTH, 0);
+        int pixelHeight = format.getInteger(MediaFormat.KEY_PIXEL_ASPECT_RATIO_HEIGHT, 0);
+        float pixelAspect = pixelWidth > 0 && pixelHeight > 0 ? (float) pixelWidth / pixelHeight : 1;
+        DECODED_ASPECTS.put(renderer, (float) width / height * pixelAspect);
+    }
+
+    public static void begin(Object renderer, Surface surface, Size bufferSize, int vertexLocation,
                              int matrixLocation, float[] stockMatrix) {
         DrawState state = DRAW_STATE.get();
         if (state != null) {
@@ -335,14 +360,17 @@ public final class RemotePreview {
             state = new DrawState();
             DRAW_STATE.set(state);
         }
-        if (state.settings != current || state.dimensions != dimensions || !bufferSize.equals(state.bufferSize)) {
+        Float decodedAspect = DECODED_ASPECTS.get(renderer);
+        float bufferAspect = (float) bufferSize.getWidth() / bufferSize.getHeight();
+        float sourceAspect = PreviewGeometry.sourceAspect(decodedAspect == null ? 0 : decodedAspect,
+            stockMatrix, bufferAspect);
+        if (state.settings != current || state.dimensions != dimensions || state.sourceAspect != sourceAspect) {
             state.settings = current;
             state.dimensions = dimensions;
+            state.sourceAspect = sourceAspect;
             int width = (int) (dimensions >>> 32);
             int height = (int) dimensions;
-            // The SurfaceView can stretch the EGL buffer to a differently shaped Compose slot.
-            state.geometry = PreviewGeometry.calculate(bufferSize.getWidth(), bufferSize.getHeight(),
-                width, height, current);
+            state.geometry = PreviewGeometry.calculate(sourceAspect, 1, width, height, current);
             if (state.geometry != null) {
                 state.geometry.writeVertices(state.vertices);
             }

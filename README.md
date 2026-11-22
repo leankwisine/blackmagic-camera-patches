@@ -2,9 +2,9 @@
 
 ## Blackmagic Remote Monitor
 
-Rotate the wireless remote preview in Blackmagic Camera for Android while the camera controls stay upright. The patch also adds aspect-ratio framing, Fit and Fill, and tap-to-focus that follows the transformed image.
+Rotate the wireless remote preview in Blackmagic Camera for Android while the camera controls stay upright. The patch adds aspect-ratio framing, Fit and Fill, and tap-to-focus that follows the transformed image. Preview framing adapts when a lens or recording mode changes the incoming video proportions.
 
-- [Download the patch and read the installation instructions](https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.1.0)
+- [Download the patch and read the installation instructions](https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.1.1)
 - [Copy the install prompt for Claude, ChatGPT, or another AI assistant](#copyable-prompt-for-an-ai-assistant)
 - [Read the compatibility, build, and verification notes](docs/REMOTE_MONITOR_TRANSFORM.md)
 
@@ -16,13 +16,13 @@ Use this with Claude, ChatGPT, or another assistant that can run terminal comman
 
 ```text
 Help me apply and test the Blackmagic Remote Monitor patch on my own Android device. Use this project's GitHub release:
-https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.1.0
+https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.1.1
 
 1. Check that ADB sees my authorized device and that the installed package is com.blackmagicdesign.android.blackmagiccam version 3.5.2.0025 (26111001) on arm64-v8a. If several devices are connected, confirm which one to use and target it explicitly with ADB. If the version or architecture differs, stop and report the mismatch.
-2. Download blackmagic-remote-monitor-v0.1.0.mpp from the release and verify its SHA-256 is e5a0ca0eaa618e14e7c51a0c3c98d92a4290d47e745eb21ed814ed08cadc7a03. Use adb shell pm path to locate and copy my original base APK and all installed splits to a private local folder. Keep those originals for rollback. Keep APKs, signing keys, device identifiers, and logs local.
+2. Download blackmagic-remote-monitor-v0.1.1.mpp from the release and verify its SHA-256 is 83b7c9589197ccc98af0585fe2cfd83daa8236e505539cd10f6535f04f8b2dd5. If I already installed a patched copy, use my saved original base APK and splits for this build. Otherwise, use adb shell pm path to locate and copy the original base APK and all installed splits to a private local folder. Keep those originals for rollback. Keep APKs, signing keys, device identifiers, and logs local.
 3. Use Morphe Desktop 2.3.0 to patch a copy of base.apk. Select only Remote monitor display transforms and the separate upstream Disable license check patch used in the tested re-signed build. In the CLI, use --exclusive --validate --unsigned --bytecode-mode=FULL with -p for the MPP and -e for each selected patch.
-4. Use Android Build Tools to align and sign the patched base and copies of all splits with the same local key, then verify that every APK has the same signing certificate. Keep this key private for future updates. Before uninstalling a Play Store copy, explain that uninstalling clears app data, help me check my backups, and get my explicit approval. Install the matched signed set with adb install-multiple. If installation fails after uninstalling, reinstall the original signed APK set and help me restore app data from my backups.
-5. Launch Blackmagic Camera and help me reconnect the remote camera. On the selected feed, open the rotation icon in the upper-right corner. Verify that 90° rotates the video while the controls stay upright, that an off-center tap focuses the corresponding point, and that settings survive reconnecting. Report what you observed and which checks still need my help.
+4. Use Android Build Tools to align and sign the patched base and copies of all splits with the same local key, then verify that every APK has the same signing certificate. Keep this key private for future updates. If the installed patched app uses the same key, update it with adb install-multiple -r to keep its data. For a fresh installation, use adb install-multiple. If an uninstall is required first, explain that it clears app data, help me check my backups, and get my explicit approval. If installation fails after uninstalling, reinstall the original signed APK set and help me restore app data from my backups.
+5. Launch Blackmagic Camera and help me reconnect the remote camera. On the selected feed, open the rotation icon in the upper-right corner. Verify that 90° rotates the video while the controls stay upright, that an off-center tap focuses the corresponding point, and that settings survive reconnecting. Switch between available lenses and confirm a square reference target retains its proportions. Report what you observed and which checks still need my help.
 ```
 
 ## Upstream Blackmagic Camera patches

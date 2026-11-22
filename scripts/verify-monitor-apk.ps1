@@ -66,10 +66,13 @@ foreach ($method in @('focusToStock(', 'focusToDisplay(')) {
     if (!$focus.Contains("$runtime->$method")) { throw "Missing remote focus hook $method" }
 }
 if (!$tap.Contains("$runtime->keepVideoTap(")) { throw 'Missing preview tap bounds hook.' }
+if (!(Get-Smali $patchedSmali 'zi9').Contains("$runtime->setDecodedFormat(")) {
+    throw 'Missing remote stream aspect hooks.'
+}
 $null = Get-Smali $patchedSmali 'app/blackmagic/patches/monitor/RemotePreview'
 
 foreach ($class in @(
-    'cj9', 'xga', 'zi9', 'pea', 'a8a', 'ej9',
+    'cj9', 'xga', 'pea', 'a8a', 'ej9',
     'com/blackmagicdesign/android/remote/jni/NativeGstreamer',
     'com/pairip/licensecheck/LicenseClient'
 )) {
@@ -80,4 +83,4 @@ foreach ($class in @(
 if ((Get-FileHash -LiteralPath $stock).Hash -cne $stockHash) {
     throw 'The original base APK changed.'
 }
-"Verified monitor hooks, extension DEX, and unchanged decoder, transport, and license classes. Report: $report"
+"Verified monitor hooks, extension DEX, and unchanged decoder setup, transport, and license classes. Report: $report"
