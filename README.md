@@ -160,7 +160,7 @@ These are documented with exact bytecode in [`docs/BLACKMAGIC_REPORT.md`](docs/B
 
 ## Credits & reporting
 
-Built on [Morphe Patcher](https://github.com/MorpheApp/morphe-patcher) (itself based on
+Built on work by azain47 in his blackmagic-camera-patches repo, and subsequently [Morphe Patcher](https://github.com/MorpheApp/morphe-patcher) (itself based on
 [ReVanced](https://github.com/ReVanced/revanced-patcher)). The findings in
 [`docs/BLACKMAGIC_REPORT.md`](docs/BLACKMAGIC_REPORT.md) are intended to be shared upstream
 with Blackmagic Design so the issues can be fixed in the real app.
