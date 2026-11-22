@@ -62,6 +62,7 @@ The exact version and code gate complements structural checks on SurfaceHolder c
 - **Rotation** adds a clockwise 0°, 90°, 180° or 270° turn. The calculator exchanges source dimensions for 90° and 270°.
 - **Aspect ratio** sets Original, 16:9, 9:16, 4:3 or 1:1 as the framing choice. Original keeps the decoded video proportions.
 - **Fit** contains the image in the selected frame. **Center crop** covers the largest selected frame that fits within the viewport. **Fill** covers a frame sized to fill the viewport and clips any overflow at the viewport. Original makes Fill and Center crop equivalent. **Default** uses the stock draw when rotation and aspect are also at their defaults, and otherwise uses Fit.
+- **Monitor LUT** opens the Android file picker for a local `.cube` file. The selected preview uses Blackmagic's existing 3D LUT shader. Select the file name in the submenu to toggle it, or use **Remove monitor LUT** to clear the selection. Use a LUT that matches the incoming feed's color profile. Disable the local LUT if the feed already has a grade applied. The monitor setting affects the Android preview only. Reselect the remote feed if the file picker interrupts the connection.
 - Open the control with the rotation icon at the top end of the selected feed. The icon sheds its background after 3.5 seconds, and the same small area opens the menu again. The icon remains visible with touch exploration enabled. Transform choices are application-wide for the selected remote monitor and stored in a dedicated SharedPreferences entry.
 
 This SurfaceView receives already-oriented frames from the stock renderer. Applying the change at the last GL draw avoids the layering and clipping side effects of rotating a SurfaceView and the lifecycle/compositing changes of replacing it with a TextureView. Compose remains responsible for its original camera UI. Any crop previously applied by Blackmagic still limits the content available for display.
@@ -113,6 +114,8 @@ $bundle = ./scripts/build-monitor-local.ps1 -MorpheDesktop $desktopJar -GradleLi
 - An in-place update retained the remote pairing and 90° setting. Opposite-edge taps centered the controller's AE/AF marker on the corresponding edges of the reference chart. Focus on the remote camera was confirmed. JVM coverage includes all four rotations, Fit bars, Center crop and Fill.
 
 - In a follow-up test, the uncropped 0.5× 19 mm feed reported 1080×1920. At 90° Original Fit, the monitor displayed the square reference target at 141×142 pixels. Regression coverage exercises lens switches that change the decoded aspect and the resulting focus mapping.
+
+- A generated grayscale `.cube` desaturated the live remote preview. The LUT was restored after restarting the Android app and reconnecting the feed. Toggling the monitor LUT off restored color on the next frames.
 
 ### Preview frame timing
 

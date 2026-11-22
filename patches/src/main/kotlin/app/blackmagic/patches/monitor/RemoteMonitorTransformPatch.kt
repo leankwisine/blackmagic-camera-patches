@@ -9,12 +9,15 @@ import app.morphe.patcher.patch.Compatibility
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.SupportedAbi
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.formats.Instruction35c
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
 
 private const val VERSION = "3.5.2.0025"
 private const val VERSION_CODE = 26111001
@@ -50,7 +53,9 @@ val remoteMonitorTransformPatch = bytecodePatch(
         val remoteAttach = RemoteSurfaceCreated.instructionMatches[3]
         val fixedCall = fixedSize.getInstruction<Instruction35c>()
         val attachCall = remoteAttach.getInstruction<Instruction35c>()
-        val drawCall = PreviewPresentationDraw.instructionMatches[3]
+        val lutCall = PreviewPresentationDraw.instructionMatches[3]
+        val lutRegisters = lutCall.getInstruction<Instruction35c>()
+        val drawCall = PreviewPresentationDraw.instructionMatches.last()
         val drawRegisters = drawCall.getInstruction<Instruction35c>()
 
         val actualDrawCalls = draw.implementation?.instructions?.count { instruction ->
@@ -168,9 +173,71 @@ val remoteMonitorTransformPatch = bytecodePatch(
                 invoke-static {p0, p2}, $EXTENSION->setDecodedFormat(Ljava/lang/Object;$MEDIA_FORMAT)V
             """.trimIndent(),
         )
-        // GL shader uniforms are set by the stock draw. The extension updates only the video quad.
+        val lutFields = classDefBy(LUT_EFFECT).fields.map { it.name to it.type }
+        val lutMethods = classDefBy(LUT_EFFECT).methods
+        val parserMethods = classDefBy(LUT_PARSER).methods
+        val lutSizeMethods = classDefBy(FLOAT_LUT).methods
+        val parserBridge = MonitorLutParserBridge.method
+        if (lutRegisters.opcode != Opcode.INVOKE_VIRTUAL || lutRegisters.registerCount != 2 ||
+            lutRegisters.registerC != 1 || lutRegisters.registerD != 2 ||
+            ("d" to FLOAT_LUT) !in lutFields ||
+            lutMethods.none { it.name == "e" && it.parameterTypes == listOf(FLOAT_LUT) && it.returnType == "V" } ||
+            parserMethods.none { it.name == "a" && it.parameterTypes == listOf(CONTEXT, URI) && it.returnType == FLOAT_LUT } ||
+            lutSizeMethods.none { it.name == "e" && it.parameterTypes.isEmpty() && it.returnType == "I" } ||
+            parserBridge.implementation?.instructions?.lastOrNull()?.opcode != Opcode.RETURN_OBJECT
+        ) {
+            throw PatchException("Remote monitor LUT shader or parser changed in $VERSION.")
+        }
+
+        // The stock build inlines the parser's no-argument constructor into Object.<init>.
+        val nativeParser = MutableMethod(ImmutableMethod(
+            parserBridge.definingClass, parserBridge.name, parserBridge.parameters, parserBridge.returnType,
+            parserBridge.accessFlags, parserBridge.annotations, parserBridge.hiddenApiRestrictions,
+            MutableMethodImplementation(3),
+        ))
+        nativeParser.addInstructionsWithLabels(
+            0,
+            """
+                new-instance v0, $LUT_PARSER
+                invoke-direct {v0}, Ljava/lang/Object;-><init>()V
+                invoke-virtual {v0, p0, p1}, $LUT_PARSER->a($CONTEXT$URI)$FLOAT_LUT
+                move-result-object p0
+                if-eqz p0, :invalid_cube
+                invoke-virtual {p0}, $FLOAT_LUT->e()I
+                move-result v0
+                const/4 p1, 0x2
+                if-lt v0, p1, :invalid_cube
+                return-object p0
+                :invalid_cube
+                const/4 v0, 0x0
+                return-object v0
+            """.trimIndent(),
+        )
+        mutableClassDefBy(MONITOR_LUT).methods.apply {
+            remove(parserBridge)
+            add(nativeParser)
+        }
+
+        // GL shader uniforms are set by the stock draw. The extension updates the video quad.
         val (mode, first, count) = listOf(drawRegisters.registerC, drawRegisters.registerD, drawRegisters.registerE)
         draw.replaceInstruction(drawCall.index, "invoke-static {v$mode, v$first, v$count}, $EXTENSION->draw(III)V")
+        draw.addInstructionsWithLabels(
+            lutCall.index,
+            """
+                iget-object v3, p4, $OUTPUT->b:$SURFACE
+                iget-object v4, v1, $LUT_EFFECT->d:$FLOAT_LUT
+                invoke-static {v3, v1, v4, v2}, $EXTENSION->lutForOutput(${SURFACE}Ljava/lang/Object;Ljava/lang/Object;Z)Ljava/lang/Object;
+                move-result-object v3
+                if-eqz v3, :stock_lut
+                check-cast v3, $FLOAT_LUT
+                if-eq v3, v4, :show_lut
+                invoke-virtual {v1, v3}, $LUT_EFFECT->e($FLOAT_LUT)V
+                :show_lut
+                const/4 v2, 0x1
+                :stock_lut
+                nop
+            """.trimIndent(),
+        )
         draw.addInstructionsWithLabels(
             0,
             """

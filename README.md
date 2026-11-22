@@ -2,13 +2,15 @@
 
 ## Blackmagic Remote Monitor
 
-Rotate the wireless remote preview in Blackmagic Camera for Android while the camera controls stay upright. The patch adds aspect-ratio framing, Fit and Fill, and tap-to-focus that follows the transformed image. Preview framing adapts when a lens or recording mode changes the incoming video proportions.
+Rotate the wireless remote preview in Blackmagic Camera for Android while the camera controls stay upright. The patch adds aspect-ratio framing, Fit and Fill, and tap-to-focus that follows the transformed image. Preview framing adapts when a lens or recording mode changes the incoming video proportions. Load a local `.cube` file to grade the monitor preview.
 
-- [Download the patch and read the installation instructions](https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.1.1)
+- [Download the patch and read the installation instructions](https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.2.0)
 - [Copy the install prompt for Claude, ChatGPT, or another AI assistant](#copyable-prompt-for-an-ai-assistant)
 - [Read the compatibility, build, and verification notes](docs/REMOTE_MONITOR_TRANSFORM.md)
 
 Tested with **Blackmagic Camera 3.5.2.0025 (26111001), arm64-v8a**. Apply the patch to your own copy of the app. Open the selected remote feed and tap the rotation icon in the upper-right corner.
+
+To use a preview LUT, open **↻ → Monitor LUT → Choose .cube file…** and select a file that matches the incoming video’s color profile. Tap its name in the menu to toggle the LUT. Reselect the remote feed if the file picker interrupts the connection. This setting applies only to the Android preview.
 
 ### Copyable prompt for an AI assistant
 
@@ -16,13 +18,14 @@ Use this with Claude, ChatGPT, or another assistant that can run terminal comman
 
 ```text
 Help me apply and test the Blackmagic Remote Monitor patch on my own Android device. Use this project's GitHub release:
-https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.1.1
+https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.2.0
 
 1. Check that ADB sees my authorized device and that the installed package is com.blackmagicdesign.android.blackmagiccam version 3.5.2.0025 (26111001) on arm64-v8a. If several devices are connected, confirm which one to use and target it explicitly with ADB. If the version or architecture differs, stop and report the mismatch.
-2. Download blackmagic-remote-monitor-v0.1.1.mpp from the release and verify its SHA-256 is 83b7c9589197ccc98af0585fe2cfd83daa8236e505539cd10f6535f04f8b2dd5. If I already installed a patched copy, use my saved original base APK and splits for this build. Otherwise, use adb shell pm path to locate and copy the original base APK and all installed splits to a private local folder. Keep those originals for rollback. Keep APKs, signing keys, device identifiers, and logs local.
+2. Download blackmagic-remote-monitor-v0.2.0.mpp from the release and verify its SHA-256 is 26c0b9f6dbaf8aae43cf03ce9b07888694d4a3adba6eca7fc6730d41c1d21d2e. If I already installed a patched copy, use my saved original base APK and splits for this build. Otherwise, use adb shell pm path to locate and copy the original base APK and all installed splits to a private local folder. Keep those originals for rollback. Keep APKs, signing keys, device identifiers, and logs local.
 3. Use Morphe Desktop 2.3.0 to patch a copy of base.apk. Select only Remote monitor display transforms and the separate upstream Disable license check patch used in the tested re-signed build. In the CLI, use --exclusive --validate --unsigned --bytecode-mode=FULL with -p for the MPP and -e for each selected patch.
 4. Use Android Build Tools to align and sign the patched base and copies of all splits with the same local key, then verify that every APK has the same signing certificate. Keep this key private for future updates. If the installed patched app uses the same key, update it with adb install-multiple -r to keep its data. For a fresh installation, use adb install-multiple. If an uninstall is required first, explain that it clears app data, help me check my backups, and get my explicit approval. If installation fails after uninstalling, reinstall the original signed APK set and help me restore app data from my backups.
-5. Launch Blackmagic Camera and help me reconnect the remote camera. On the selected feed, open the rotation icon in the upper-right corner. Verify that 90° rotates the video while the controls stay upright, that an off-center tap focuses the corresponding point, and that settings survive reconnecting. Switch between available lenses and confirm a square reference target retains its proportions. Report what you observed and which checks still need my help.
+5. Launch Blackmagic Camera and help me reconnect the remote camera. On the selected feed, open the rotation icon in the upper-right corner. Verify that 90° rotates the video while the controls stay upright, that an off-center tap focuses the corresponding point, and that settings survive reconnecting. Switch between available lenses and confirm a square reference target retains its proportions.
+6. If I provide a matching .cube file, help me select it under Monitor LUT in the rotation menu. Reconnect the feed if the file picker interrupts it. Toggle the LUT on and off and confirm the preview color changes. Keep the .cube file local. Report what you observed and which checks still need my help.
 ```
 
 ## Upstream Blackmagic Camera patches

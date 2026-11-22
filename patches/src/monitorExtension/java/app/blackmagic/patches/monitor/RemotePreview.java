@@ -6,6 +6,8 @@ import android.graphics.PointF;
 import android.media.MediaFormat;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Size;
 import android.view.Gravity;
 import android.view.Menu;
@@ -32,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Entry points called from the stock main-thread surface callbacks and GL output draw. */
 public final class RemotePreview {
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final String PREFERENCES = "blackmagic_remote_preview_patch";
     private static final String PREFERENCE_KEY = "display_transform";
     private static final Set<SurfaceView> REGISTERED = Collections.newSetFromMap(new WeakHashMap<>());
@@ -39,6 +42,8 @@ public final class RemotePreview {
     private static final Map<SurfaceHolder, Binding> BINDINGS = new WeakHashMap<>();
     private static final Map<Surface, Viewport> REMOTE_OUTPUTS = new ConcurrentHashMap<>();
     private static final Map<Object, Float> DECODED_ASPECTS =
+        Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Object, Object> STOCK_LUTS =
         Collections.synchronizedMap(new WeakHashMap<>());
     private static final ThreadLocal<DrawState> DRAW_STATE = new ThreadLocal<>();
     private static final float[] BLACK = {0, 0, 0, 1};
@@ -97,6 +102,7 @@ public final class RemotePreview {
             } catch (ClassCastException ignored) {
                 settings = PreviewSettings.DEFAULT;
             }
+            MonitorLut.initialize(context, preferences);
         }
 
         Binding binding = new Binding(view, surface, (FrameLayout) view.getRootView(), camera);
@@ -114,9 +120,7 @@ public final class RemotePreview {
         if (binding != null) {
             binding.viewport.dimensions = 0;
             REMOTE_OUTPUTS.remove(binding.surface, binding.viewport);
-            binding.view.removeOnLayoutChangeListener(binding);
-            binding.hideButton();
-            binding.parent.removeView(binding.button);
+            binding.dispose();
         }
     }
 
@@ -190,6 +194,7 @@ public final class RemotePreview {
         final int[] viewLocation = new int[2];
         final int[] parentLocation = new int[2];
         PopupMenu popup;
+        boolean disposed;
 
         Binding(SurfaceView view, Surface surface, FrameLayout parent, UUID camera) {
             viewport = new Viewport(camera);
@@ -217,10 +222,17 @@ public final class RemotePreview {
             };
             int size = Math.round(48 * context.getResources().getDisplayMetrics().density);
             FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(size, size, Gravity.TOP | Gravity.LEFT);
-            parent.addView(button, layout);
+            button.setLayoutParams(layout);
             view.addOnLayoutChangeListener(this);
             updateSize(view.getWidth(), view.getHeight());
-            revealButton();
+            // Surface callbacks can run while the window is dispatching visibility to its children.
+            MAIN.post(() -> {
+                if (!disposed) {
+                    parent.addView(button, layout);
+                    updateSize(view.getWidth(), view.getHeight());
+                    revealButton();
+                }
+            });
         }
 
         private void updateSize(int width, int height) {
@@ -247,11 +259,16 @@ public final class RemotePreview {
             }
         }
 
-        void hideButton() {
-            if (popup != null) {
-                popup.dismiss();
-            }
-            button.removeCallbacks(fade);
+        void dispose() {
+            disposed = true;
+            view.removeOnLayoutChangeListener(this);
+            MAIN.post(() -> {
+                if (popup != null) {
+                    popup.dismiss();
+                }
+                button.removeCallbacks(fade);
+                parent.removeView(button);
+            });
         }
 
         private void showMenu() {
@@ -288,8 +305,10 @@ public final class RemotePreview {
                         return true;
                     });
             }
+            MonitorLut.addMenu(main.addSubMenu("Monitor LUT"), view.getContext());
             main.add("Reset to default").setOnMenuItemClickListener(item -> {
                 save(PreviewSettings.DEFAULT);
+                MonitorLut.setEnabled(false);
                 return true;
             });
             menu.setOnDismissListener(dismissed -> {
@@ -298,6 +317,19 @@ public final class RemotePreview {
             });
             menu.show();
         }
+    }
+
+    /** The stock shader owns the texture. Re-upload only when the chosen LUT changes. */
+    public static Object lutForOutput(Surface surface, Object effect, Object current, boolean stockEnabled) {
+        Object selected = surface != null && REMOTE_OUTPUTS.containsKey(surface) ? MonitorLut.active() : null;
+        if (selected != null) {
+            if (selected != current) {
+                STOCK_LUTS.putIfAbsent(effect, current);
+            }
+            return selected;
+        }
+        // Other outputs keep the stock visibility flag. Restore the stock LUT if one needs it.
+        return stockEnabled ? STOCK_LUTS.remove(effect) : null;
     }
 
     private static final class DrawState {

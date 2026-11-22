@@ -11,6 +11,12 @@ internal const val PROGRAM = "Lk90;"
 internal const val VIEW = "Le80;"
 internal const val HOLDER = "Landroid/view/SurfaceHolder;"
 internal const val GL = "Landroid/opengl/GLES20;"
+internal const val LUT_EFFECT = "Lp67;"
+internal const val FLOAT_LUT = "Lcom/blackmagicdesign/android/colorutils/luts/Float16Lut;"
+internal const val LUT_PARSER = "Lcom/blackmagicdesign/android/colorutils/luts/Float16LutParser;"
+internal const val MONITOR_LUT = "Lapp/blackmagic/patches/monitor/MonitorLut;"
+internal const val CONTEXT = "Landroid/content/Context;"
+internal const val URI = "Landroid/net/Uri;"
 internal const val REMOTE_DECODER = "Lcj9;"
 internal const val CODEC_CALLBACK = "Lzi9;"
 internal const val MEDIA_FORMAT = "Landroid/media/MediaFormat;"
@@ -51,6 +57,7 @@ internal object PreviewPresentationDraw : Fingerprint(
         methodCall(definingClass = GL, name = "glBindTexture", parameters = listOf("I", "I"), returnType = "V"),
         methodCall(definingClass = PROGRAM, name = "a", parameters = listOf("[F"), returnType = "V"),
         methodCall(definingClass = PROGRAM, name = "b", parameters = listOf("Ljava/nio/FloatBuffer;"), returnType = "V"),
+        methodCall(definingClass = LUT_EFFECT, name = "c", parameters = listOf("Z"), returnType = "V"),
         methodCall(definingClass = GL, name = "glDrawArrays", parameters = listOf("I", "I", "I"), returnType = "V"),
     ),
 )
@@ -64,6 +71,14 @@ internal object RemoteDecoderFormat : Fingerprint(
         methodCall(definingClass = "Ljava/lang/Object;", name = "getClass", returnType = "Ljava/lang/Class;"),
         methodCall(definingClass = "Ljava/lang/Object;", name = "getClass", returnType = "Ljava/lang/Class;"),
     ),
+)
+
+internal object MonitorLutParserBridge : Fingerprint(
+    definingClass = MONITOR_LUT,
+    name = "parseCube",
+    isStatic = true,
+    parameters = listOf(CONTEXT, URI),
+    returnType = "Ljava/lang/Object;",
 )
 
 internal fun controllerSurfaceContainer(className: String) = Fingerprint(

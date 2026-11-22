@@ -52,7 +52,7 @@ $renderer = Get-Smali $patchedSmali 'kb2'
 foreach ($method in @('prepare(', 'bind(', 'unbind(')) {
     if (!$callback.Contains("$runtime->$method")) { throw "Missing surface hook $method" }
 }
-foreach ($method in @('begin(', 'draw(')) {
+foreach ($method in @('begin(', 'draw(', 'lutForOutput(')) {
     if (!$renderer.Contains("$runtime->$method")) { throw "Missing presentation hook $method" }
 }
 foreach ($class in @('gz7', 'jk')) {
@@ -70,6 +70,11 @@ if (!(Get-Smali $patchedSmali 'zi9').Contains("$runtime->setDecodedFormat(")) {
     throw 'Missing remote stream aspect hooks.'
 }
 $null = Get-Smali $patchedSmali 'app/blackmagic/patches/monitor/RemotePreview'
+$lut = Get-Smali $patchedSmali 'app/blackmagic/patches/monitor/MonitorLut'
+if (!$lut.Contains('Float16LutParser;->a(Landroid/content/Context;Landroid/net/Uri;)')) {
+    throw 'Missing native LUT parser bridge.'
+}
+$null = Get-Smali $patchedSmali 'app/blackmagic/patches/monitor/MonitorLut$Picker'
 
 foreach ($class in @(
     'cj9', 'xga', 'pea', 'a8a', 'ej9',
