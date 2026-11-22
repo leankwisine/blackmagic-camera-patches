@@ -1,19 +1,13 @@
 # Remote monitor display transforms
 
-The opt-in patch adds a preview-only transform to the selected remote camera in Blackmagic Camera. Static inspection and APK patching cover **3.5.2.0025 (26111001), arm64-v8a**. The Galaxy S23 Ultra runs the locally signed test build. Installation and cold launch passed. See the device test results below for live validation.
+The opt-in patch adds a preview-only transform to the selected remote camera in Blackmagic Camera. Static inspection and APK patching cover **3.5.2.0025 (26111001), arm64-v8a**. A locally signed build passed installation, cold launch, and live monitoring between an Android controller and an iOS camera.
 
 ## Inputs and repository audit
 
-- Upstream [commit 792c6dd8013c8941ecd16101aa9032923d96d908](https://github.com/azain47/blackmagic-camera-patches/commit/792c6dd8013c8941ecd16101aa9032923d96d908). The checkout's shared compatibility declaration identifies **3.5.1.0040** as an upstream reference for its existing patches. The phone supplied the newer version above.
+- Upstream [commit 792c6dd8013c8941ecd16101aa9032923d96d908](https://github.com/azain47/blackmagic-camera-patches/commit/792c6dd8013c8941ecd16101aa9032923d96d908). The checkout's shared compatibility declaration identifies **3.5.1.0040** as an upstream reference for its existing patches. This patch targets the newer version above.
 - Audited all upstream Kotlin sources and fingerprints, Gradle scripts, version catalog, wrapper and release configuration. The gallery code demonstrates matching a stable method shape and reading typed obfuscated references. The developer options patch demonstrates narrowly modifying an existing UI path. The bitrate patch targets the local encoder's bitrate formula. The bundled PairIP patch is separate. Patch discovery loads top-level bytecode patch definitions from an MPP. The new monitor definition is independent and off by default.
-- ADB pulled the installed base and splits from a Galaxy S23 Ultra **SM-S918U1** running Android 16, API 36. Android Build Tools 36.1.0 verified a single RSA-4096 signer, APK Signature Scheme v3, and the source stamp on all three APKs. Signer certificate SHA-256 is `8a889ddc2cac452968c5f2c62d339dd2f7f9dab526864b48ab53ee0a3e140cd9`, matching the upstream compatibility declaration. Source-stamp certificate SHA-256 is `3257d599a49d2c961a471ca9843f59d341a405884583fc087df4237b733bbd6d`.
+- Android Build Tools verified that the original base and configuration splits shared the expected Blackmagic Camera signing certificate.
 - JADX 1.5.7 traced the Java call chain. Apktool 3.0.3 and Android Build Tools confirmed DEX registers and references, resources, manifest and signer. The base contains three DEX files, the GLSL shaders and `res/raw/monitoring_control.yaml`. The arm64 split contains `libgstreamer_android_remote.so`, and the xxhdpi split contains density resources. The patch touches the base.
-
-| Private device export | SHA-256 |
-| --- | --- |
-| `base.apk` | `3f92ebd71b9096aa3b69b803cadbf12c5ed1cd8ce89e1c295e3f5ed473373754` |
-| `split_config.arm64_v8a.apk` | `80f888bf02884e89e28f5226a1fd5751342f14bb9ca66e652e35183164746dca` |
-| `split_config.xxhdpi.apk` | `55fbeb9942e69261dfc9f73863031daba300972a6ee8671b0fa7b8451ce48cbb` |
 
 ## Renderer call graph
 
@@ -97,30 +91,30 @@ $bundle = ./scripts/build-monitor-local.ps1 -MorpheDesktop $desktopJar -GradleLi
 
 ## Device validation
 
-1. Verify the three original package files and preserve the stock app, data, presets, LUTs and installation. First run the comparison captures below with the stock app, using the same iPhone, network, camera settings and monitor mode intended for the patched run.
+1. Verify the three original package files and preserve the stock app, data, presets, LUTs and installation. First run the comparison captures below with the stock app, using the same remote camera, network, capture settings and monitoring mode intended for the patched run.
 2. Use a separate test installation that can accept the patched package and pass Blackmagic's existing app checks. Android requires a compatible signing identity for an in-place update and a matching certificate across all APKs of a split set. The copied APKs use the Play certificate. A locally signed set cannot update the installed package in place. Upstream also documents a PairIP launch failure on re-signed builds. The monitor patch has no dependency on the separate upstream license patch, and the offline test excludes it. [Android app signing](https://developer.android.com/studio/publish/app-signing)
-3. Launch the authorized test build and link the iPhone using the stock remote-control flow. Use a test chart with readable corner labels. With the Android orientation fixed, switch through all rotations and confirm only the video turns. Exercise every ratio and scale mode using both a portrait and landscape iPhone feed. Check for distortion, stale bands, clipping and controls that overlap the menu target.
-4. Test the stock camera controls, focus/exposure interaction as applicable, start/stop recording on the iPhone, switch cameras, leave and reopen the screen, background and foreground, rotate the S23 Ultra, interrupt the network and reconnect. Verify the settings survive force-stop/reopen and verify Reset against the baseline. Inspect the iPhone file's orientation, resolution, frame rate and content for each controller rotation. Check local preview, gallery and MultiView independently for regressions.
-5. For latency, record an LED and the S23 Ultra preview together with a third camera at 240 fps or faster. Use at least 30 transitions per mode and compare median and p95 glass-to-glass latency for stock, patched default, 90° Fit and Fill. For rendering, collect at least three 60-second Perfetto traces per mode on the same network/settings. Record presented-frame intervals, missed frame deadlines, GPU/CPU usage and graphics memory. Include orientation changes and reconnect in separate traces. Report the device, software versions, network, codec, resolution, fps and sample counts alongside results.
+3. Launch the authorized test build and link the iOS camera using the stock remote-control flow. Use a test chart with readable corner labels. With the Android orientation fixed, switch through all rotations and confirm only the video turns. Exercise every ratio and scale mode using both a portrait and landscape iOS camera feed. Check for distortion, stale bands, clipping and controls that overlap the menu target.
+4. Test the stock camera controls, focus/exposure interaction as applicable, start/stop recording on the iOS camera, switch cameras, leave and reopen the screen, background and foreground, rotate the Android controller, interrupt the network and reconnect. Verify the settings survive force-stop/reopen and verify Reset against the baseline. Inspect the iOS camera file's orientation, resolution, frame rate and content for each controller rotation. Check local preview, gallery and MultiView independently for regressions.
+5. For latency, record an LED and the Android controller preview together with a third camera at 240 fps or faster. Use at least 30 transitions per mode and compare median and p95 glass-to-glass latency for stock, patched default, 90° Fit and Fill. For rendering, collect at least three 60-second Perfetto traces per mode on the same network/settings. Record presented-frame intervals, missed frame deadlines, GPU/CPU usage and graphics memory. Include orientation changes and reconnect in separate traces. Report the device, software versions, network, codec, resolution, fps and sample counts alongside results.
 
 ## Device test results
 
-- The stock Android app displayed the iPhone feed before replacement, as confirmed by the operator.
-- With the operator's approval, a private test build was prepared from the verified stock files with **Remote monitor display transforms** and upstream's existing **Disable license check** enabled. All other upstream patches were excluded. Each APK in the three-file split set passed Android signature verification under one local key.
-- The SM-S918U1 installed all three APKs with ADB. The patched activity completed cold launch and reached the camera UI after granting camera and microphone access. Optional photo library and location access were left off.
-- The patched controller discovered the iPhone 17 Pro Max and connected after the operator entered its password directly on the S23.
+- The stock Android app displayed the iOS camera feed before replacement, as confirmed by the tester.
+- The test build used **Remote monitor display transforms** and upstream's existing **Disable license check**. All other upstream patches were excluded. Each APK in the three-file split set passed Android signature verification under one local key.
+- The signed split set installed with ADB and the patched activity completed cold launch.
+- The patched controller discovered and paired with the remote camera using Blackmagic Camera's standard connection flow.
 
 - The first device build still showed the stock sideways, stretched feed. It had only hooked the alternate controller surface path. The revision added hooks for the actual `qfa.d` / `gz7` / `jk` path, kept the original 1920×1080 EGL buffer and used its dimensions to size the rotated video.
-- On the revised build, 90° with Original and Fit displayed upright text and restored a square reference chart to square proportions. The outer chart outline measured approximately 464 × 463 pixels in the S23 screenshot. The Android HUD remained upright. The 1:1 Fit and Center crop choices produced distinct framing while preserving the chart proportions.
-- With the rotated preview active, the controller started and stopped a short iPhone recording. The iPhone tally turned red and returned to idle, and the controller continued to report 4K, 16:9, 24 fps. The recorded file itself was not inspected.
+- On the revised build, 90° with Original and Fit displayed upright text and restored a square reference chart to square proportions. The reference chart measured within one pixel of square. The Android HUD remained upright. The 1:1 Fit and Center crop choices produced distinct framing while preserving the chart proportions.
+- With the rotated preview active, the controller started and stopped a short iOS camera recording. The iOS camera tally turned red and returned to idle, and the controller continued to report 4K, 16:9, 24 fps. The recorded file itself was not inspected.
 
-- A force-stop and cold launch returned to the local-camera screen. After reselecting the iPhone from the stock remote-camera menu, the live feed returned and the Rotation menu still showed 90° checked. Reset restored the stock stretched presentation. The phone was left on the live iPhone feed with 90°, Original, and Fit enabled.
+- A force-stop and cold launch returned to the local-camera screen. After reselecting the iOS camera from the stock remote-camera menu, the live feed returned and the Rotation menu still showed 90° checked. Reset restored the stock stretched presentation.
 
-- The touch-focus revision installed in place on the S23, and the same iPhone pairing and 90° setting were available after reopening. Taps at (330, 341) and (330, 788) centered the S23's AE/AF marker on the corresponding top and bottom edges of the reference square. The operator confirmed the focus behavior on the iPhone. JVM coverage includes all four rotations, Fit bars, Center crop and Fill.
+- An in-place update retained the remote pairing and 90° setting. Opposite-edge taps centered the controller's AE/AF marker on the corresponding edges of the reference chart. Focus on the remote camera was confirmed. JVM coverage includes all four rotations, Fit bars, Center crop and Fill.
 
 ### Preview frame timing
 
-SurfaceFlinger actual-present timestamps were sampled from the active remote preview's BLAST surface with the iPhone reporting 4K, 16:9, 24 fps. Default uses the stock draw in the installed test build. Each row is a roughly three-second sample.
+SurfaceFlinger actual-present timestamps were sampled from the active remote preview's BLAST surface with the iOS camera reporting 4K, 16:9, 24 fps. Default uses the stock draw in the installed test build. Each row is a roughly three-second sample.
 
 | Mode | Presented frames | Effective fps | Median frame interval | p95 frame interval |
 | --- | ---: | ---: | ---: | ---: |
@@ -133,14 +127,14 @@ These samples measure Android presentation cadence. Glass-to-glass latency, sust
 
 | Function | Implementation | Evidence |
 | --- | --- | --- |
-| Upstream audit and exact target APK identity | Complete | Cloned and reviewed the pinned upstream commit. Verified device export hashes, manifest and all signatures. |
+| Upstream audit and exact target APK identity | Complete | Cloned and reviewed the pinned upstream commit. Verified the original app manifest and split signatures. |
 | Development patch bundle | Built | Java extension, D8, Kotlin compiler and MPP package succeeded. Authenticated Gradle build remains unverified. |
 | Exact APK fingerprints and bytecode | Applied | Morphe Desktop ran with uniqueness validation and enabled only the monitor patch. Apktool verification covers the extension and untouched decoder, transport and license classes. APK Signature Scheme verification passed for the aligned and locally signed three-APK test set. |
-| Rotation, aspect, Fit/Fill/Center crop, invalid input and reset | Partially device-tested | Thirteen JVM tests passed. The S23 displayed the square chart upright at 90° Original Fit. Live 1:1 Fit and Center crop produced distinct framing. |
-| Remote touch focus | Device-tested | Opposite-edge taps tracked at 90° on the S23, and the operator confirmed iPhone focus behavior. Coordinate tests cover bars and crop. |
+| Rotation, aspect, Fit/Fill/Center crop, invalid input and reset | Partially device-tested | Thirteen JVM tests passed. The Android controller displayed the square chart upright at 90° Original Fit. Live 1:1 Fit and Center crop produced distinct framing. |
+| Remote touch focus | Device-tested | Opposite-edge taps tracked at 90° on the controller, and focus on the remote camera was confirmed. Coordinate tests cover bars and crop. |
 | Preferences and control | Device-tested | The 90° choice persisted across process restart and camera reselection. Stock Record and the transform menu both responded. |
-| Surface recreation, device rotation and reconnect | Partially device-tested | The restarted app recreated the remote preview after reselecting the iPhone. Physical Android display rotation was not exercised. |
-| Device launch, live connection and iPhone recording | Partially tested | Signed split set installed and launched. Live iPhone video and remote Record start/stop passed. The original recorded file still needs independent inspection. |
+| Surface recreation, device rotation and reconnect | Partially device-tested | The restarted app recreated the remote preview after reselecting the iOS camera. Physical Android display rotation was not exercised. |
+| Device launch, live connection and iOS camera recording | Partially tested | Signed split set installed and launched. Live iOS camera video and remote Record start/stop passed. The original recorded file still needs independent inspection. |
 | Latency and rendering performance | Partially measured | Both brief device samples had a 41.63 ms median frame interval. End-to-end latency and sustained rendering load remain unmeasured. |
 
 ## Changelog

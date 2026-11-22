@@ -1,5 +1,16 @@
 # Blackmagic Camera patches
 
+## Blackmagic Remote Monitor
+
+Rotate the wireless remote preview in Blackmagic Camera for Android while the camera controls stay upright. The patch also adds aspect-ratio framing, Fit and Fill, and tap-to-focus that follows the transformed image.
+
+- [Download the patch and read the installation instructions](https://github.com/leankwisine/blackmagic-camera-patches/releases/tag/remote-monitor-v0.1.0)
+- [Read the compatibility, build, and verification notes](docs/REMOTE_MONITOR_TRANSFORM.md)
+
+Tested with **Blackmagic Camera 3.5.2.0025 (26111001), arm64-v8a**. Apply the patch to your own copy of the app. Open the selected remote feed and tap the rotation icon in the upper-right corner.
+
+## Upstream Blackmagic Camera patches
+
 A small [Morphe](https://github.com/MorpheApp/morphe-patcher) / ReVanced-style patch
 bundle for the Android **Blackmagic Camera** app, built from a field investigation into
 random recording freezes on a Galaxy S23 Ultra. The patches are fingerprint-based, so
@@ -63,7 +74,7 @@ patch list above. Don't edit those by hand.
 ### On-device (Morphe Manager) — recommended
 
 1. Install the [Morphe Manager](https://morphe.software) app.
-2. Tap the link on your phone to add this repo as a patch source:
+2. Tap the link on your phone to add the upstream repository as a patch source:
 
    [**➕ Add Blackmagic Camera Patches to Morphe**](https://morphe.software/add-source?github=azain47/blackmagic-camera-patches)
 
